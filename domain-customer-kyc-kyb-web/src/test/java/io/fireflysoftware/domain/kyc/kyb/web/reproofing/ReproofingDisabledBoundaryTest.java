@@ -8,7 +8,7 @@ import org.springframework.web.reactive.config.EnableWebFlux;
 class ReproofingDisabledBoundaryTest {
     @Configuration(proxyBeanMethods=false)
     @EnableWebFlux
-    @ComponentScan("io.fireflysoftware.domain.kyc.kyb.web.reproofing")
+    @ComponentScan("io.fireflysoftware.domain.kyc.kyb.web.reproofing.impl")
     static class Boundary { }
 
     @Test

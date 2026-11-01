@@ -27,11 +27,12 @@ import reactor.core.publisher.Mono;
 
 /** Explicit hosted test process only. This class and its signed provider are absent from all production JARs. */
 @SpringBootConfiguration
+@Profile("reproofing-fixture")
 @EnableAutoConfiguration
 @Import({ReproofingSecurityConfigurationImpl.class,ReproofingConfigurationImpl.class,ReproofingControllerImpl.class,
-    ReproofingEvidenceControllerImpl.class,ReproofingBodyLimitFilterImpl.class,ReproofingFixtureApplication.FixtureController.class})
+    ReproofingEvidenceControllerImpl.class,ReproofingBodyLimitFilterImpl.class,ReproofingErrorHandlerImpl.class,ReproofingFixtureApplication.FixtureController.class})
 public class ReproofingFixtureApplication {
-    public static void main(String[] args){SpringApplication.run(ReproofingFixtureApplication.class,args);}
+    public static void main(String[] args){var app=new SpringApplication(ReproofingFixtureApplication.class);app.setAdditionalProfiles("reproofing-fixture");app.run(args);}
     @Bean FixtureProviderImpl fixtureProvider(Environment env){return new FixtureProviderImpl(env);}
     @Bean @Order(-201) SecurityWebFilterChain fixtureBoundary(ServerHttpSecurity http,Environment env){
         String id=env.getRequiredProperty("firefly.reproofing.fixture-client");
@@ -97,6 +98,7 @@ public class ReproofingFixtureApplication {
             return HexFormat.of().formatHex(mac.doFinal(mapper.writeValueAsBytes(List.of(c.caseId(),c.providerStartId(),c.binding(),c.providerId(),c.policyId(),c.expiresAt(),mode))));
         }
     }
+    @Profile("reproofing-fixture")
     @RestController static class FixtureController {
         private final FixtureProviderImpl provider;
         FixtureController(FixtureProviderImpl provider){this.provider=provider;}

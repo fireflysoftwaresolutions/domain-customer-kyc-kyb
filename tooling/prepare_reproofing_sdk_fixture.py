@@ -141,6 +141,8 @@ def main():
     if '--candidate-only' in sys.argv:
         print('Generated candidate SDK installed; Domain verification explicitly not executed')
         return
+    run(common + ['-f', str(ROOT / 'pom.xml'), '-pl', ':domain-customer-kyc-kyb-web', '-am', 'test',
+                  '-Dtest=ReproofingIdempotencyTest', '-Dsurefire.failIfNoSpecifiedTests=false'], 'domain-cache-boundary')
     run(common + ['-f', str(ROOT / 'pom.xml'), 'verify', '-Pgenerate-openapi', 'dependency:build-classpath', '-Dmdep.includeScope=test', '-Dmdep.outputFile=runtime-classpath.txt'], 'domain-reactor')
     import zipfile
     for production in ROOT.glob('domain-customer-kyc-kyb-*/target/*.jar'):
