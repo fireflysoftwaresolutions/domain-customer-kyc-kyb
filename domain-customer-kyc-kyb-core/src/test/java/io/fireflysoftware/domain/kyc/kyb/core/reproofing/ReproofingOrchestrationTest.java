@@ -69,5 +69,18 @@ class ReproofingOrchestrationTest {
     }
     @ParameterizedTest @ValueSource(strings={"https://proof.test.evil/journey","https://proof.test:444/journey","http://proof.test/journey","https://user@proof.test/journey"})
     void providerJourneyRequiresExactConfiguredHttpsOrigin(String url){assertThatThrownBy(()->policy.journeyUrl(url)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);}
+    @ParameterizedTest @ValueSource(strings={"issuer","realm","tenant","purpose","population"})
+    void wrongCustomerAuthorityBindingIsRefused(String field){
+        var wrong=new ReproofingBinding(field.equals("issuer")?"https://other.test":b.issuer(),field.equals("realm")?"other":b.realm(),field.equals("tenant")?"other":b.tenant(),b.subject(),b.partyId(),field.equals("population")?"STAFF":b.population(),field.equals("purpose")?"UNLOCK":b.purpose(),b.generation(),b.credentialRevision(),b.nonce());
+        StepVerifier.create(service.create(new CreateReproofingCaseRequest(wrong))).expectErrorMatches(e->e.getMessage().contains("403")).verify();
+        verifyNoInteractions(core,nativePort,provider);
+    }
+    @Test void replayedEvidenceFromAnotherCaseIsRefused(){
+        var r=new ReproofingEvidenceRequest(c.caseId(),b,"provider","policy","session");
+        when(provider.providerId()).thenReturn("provider");when(core.inspect(c.caseId(),new ConfirmReproofingRequest(b))).thenReturn(Mono.just(c));
+        var e=new VerifiedReproofingEvidence(UUID.randomUUID(),b,"provider","policy","session","evidence","digest",b.partyId(),now,c.expiresAt(),true,true,true,true);
+        when(provider.verify(r)).thenReturn(Mono.just(e));
+        StepVerifier.create(service.evidence(r)).expectErrorMatches(error->error.getMessage().contains("403")).verify();
+    }
     @Test void customerAuthorityRefusesStaff(){var staff=new ReproofingBinding(b.issuer(),b.realm(),b.tenant(),b.subject(),b.partyId(),"STAFF",b.purpose(),b.generation(),b.credentialRevision(),b.nonce()); assertThatThrownBy(()->policy.binding(staff)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);}
 }
