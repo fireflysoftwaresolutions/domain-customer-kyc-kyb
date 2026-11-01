@@ -13,7 +13,9 @@ class ReproofingDisabledBoundaryTest {
 
     @Test
     void recoveryAndEvidencePathsRefuseRequestsEvenWithFeatureDisabled() {
-        try (var context = new AnnotationConfigApplicationContext(Boundary.class)) {
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("narrow",java.util.Map.of("firefly.security.resource-server.enabled","false")));
+            context.register(Boundary.class);context.refresh();
             var client = WebTestClient.bindToApplicationContext(context).build();
             for (String path : new String[]{"/api/v1/identity-recovery/cases", "/internal/identity-recovery/evidence"}) {
                 client.post().uri(path).exchange().expectStatus().isForbidden();

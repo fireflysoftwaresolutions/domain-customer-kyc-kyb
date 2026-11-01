@@ -26,7 +26,7 @@ class ReproofingReceiverTest {
         when(service.create(any())).thenReturn(Mono.error(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)));
         try(var context=new AnnotationConfigApplicationContext()){
             context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test",Map.of(
-                "firefly.reproofing.enabled","true","firefly.reproofing.native-client","native","firefly.reproofing.verifier-client","core",
+                "firefly.security.resource-server.enabled","false","firefly.reproofing.enabled","true","firefly.reproofing.native-client","native","firefly.reproofing.verifier-client","core",
                 "firefly.reproofing.native-secret-file",nativeSecret.toString(),"firefly.reproofing.verifier-secret-file",coreSecret.toString())));
             context.register(Web.class,ReproofingSecurityConfigurationImpl.class,ReproofingControllerImpl.class,ReproofingEvidenceControllerImpl.class);
             context.registerBean(ReproofingServiceImpl.class,()->service);context.refresh();

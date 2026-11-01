@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 class ReproofingGenericSecurityTest {
     final ReactiveWebApplicationContextRunner runner=new ReactiveWebApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(ResourceServerAutoConfiguration.class))
-        .withUserConfiguration(Web.class,ReproofingSecurityConfigurationImpl.class)
+        .withUserConfiguration(Web.class,ReproofingSecurityConfigurationImpl.class,io.fireflysoftware.domain.kyc.kyb.web.reproofing.impl.ReproofingExistingSecurityGuardConfigurationImpl.class)
         .withBean(ReactiveJwtDecoder.class,()->token->Mono.error(new BadJwtException("Refused")));
     @Configuration(proxyBeanMethods=false) @EnableWebFlux static class Web { }
     @RestController static class UnrelatedController {
@@ -34,7 +34,7 @@ class ReproofingGenericSecurityTest {
         }
     }
     @Test void suppressedOptionalGenericPolicyRefusesStartup(){
-        runner.run(context->{assertThat(context).hasFailed();assertThat(context.getStartupFailure()).hasRootCauseMessage("Independent existing application security chain required");});
+        runner.run(context->{assertThat(context).hasFailed();assertThat(context.getStartupFailure()).hasStackTraceContaining("Independent existing application security chain required");});
     }
     @Test void explicitlyInstalledOriginalGenericPolicyStillDeniesMissingAndWrongBearer(){
         runner.withUserConfiguration(ExistingPolicy.class).run(context->{

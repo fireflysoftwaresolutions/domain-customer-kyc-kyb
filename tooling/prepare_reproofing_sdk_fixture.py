@@ -126,7 +126,7 @@ def main():
     spec = yaml.safe_load(spec_path.read_text())
     for operation_id, suffix in OPERATIONS.items():
         operation = spec['paths']['/api/v1/identity-recovery/cases' + suffix]['post']
-        if operation['operationId'] != operation_id:
+        if operation['operationId'] != operation_id or any(p.get('name') == 'X-Idempotency-Key' for p in operation.get('parameters',[])):
             raise RuntimeError('Original producer operation mismatch')
     flat = sdk / '.flattened-pom.xml'
     flat_model = ET.parse(flat).getroot()
@@ -154,7 +154,7 @@ def main():
         suite = ET.parse(report).getroot()
         if 'Reproofing' in suite.attrib.get('name', ''):
             reports.append({key: suite.attrib.get(key, '0') for key in ('name', 'tests', 'failures', 'errors', 'skipped')})
-    required = {'ReproofingOrchestrationTest', 'ReproofingDisabledBoundaryTest', 'ReproofingReceiverTest', 'GeneratedReproofingSdkTest', 'ReproofingFixtureProviderTest'}
+    required = {'ReproofingOrchestrationTest', 'ReproofingDisabledBoundaryTest', 'ReproofingReceiverTest', 'GeneratedReproofingSdkTest', 'ReproofingFixtureProviderTest', 'ReproofingGenericSecurityTest', 'ReproofingIdempotencyTest'}
     if not all(any(r['name'].endswith(name) for r in reports) for name in required) or any(int(r[k]) for r in reports for k in ('failures', 'errors', 'skipped')):
         raise RuntimeError('Required actual Domain/SDK reports missing, failed or skipped')
     summary.update(candidate_sdk_version=version, candidate_sdk_sha256=sha(jar), candidate_descriptor_sha256=sha(flat),
@@ -166,6 +166,7 @@ def main():
     classpath += [ROOT / f'domain-customer-kyc-kyb-{module}' / 'target/classes' for module in ('core','infra','interfaces')]
     (qualification / 'reproofing-domain-classpath.txt').write_text(':'.join(map(str, classpath)) + ':' + deps.read_text().strip())
     properties = {
+        'firefly.security.resource-server.enabled': False,
         'firefly.reproofing.native-client': '${NATIVE_CLIENT}',
         'firefly.reproofing.native-secret-file': '${STATE}/secrets/native-domain.secret',
         'firefly.reproofing.verifier-client': '${VERIFIER_CLIENT}',

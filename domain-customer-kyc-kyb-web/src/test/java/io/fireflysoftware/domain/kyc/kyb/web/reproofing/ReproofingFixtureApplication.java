@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono;
 @SpringBootConfiguration
 @Profile("reproofing-fixture")
 @EnableAutoConfiguration
-@Import({ReproofingSecurityConfigurationImpl.class,ReproofingConfigurationImpl.class,ReproofingControllerImpl.class,
+@Import({ReproofingSecurityConfigurationImpl.class,ReproofingExistingSecurityGuardConfigurationImpl.class,ReproofingConfigurationImpl.class,ReproofingControllerImpl.class,
     ReproofingEvidenceControllerImpl.class,ReproofingBodyLimitFilterImpl.class,ReproofingErrorHandlerImpl.class,ReproofingFixtureApplication.FixtureController.class})
 public class ReproofingFixtureApplication {
     public static void main(String[] args){var app=new SpringApplication(ReproofingFixtureApplication.class);app.setAdditionalProfiles("reproofing-fixture");app.run(args);}
