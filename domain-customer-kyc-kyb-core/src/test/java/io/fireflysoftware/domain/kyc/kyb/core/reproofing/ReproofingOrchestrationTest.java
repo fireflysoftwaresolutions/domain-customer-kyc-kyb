@@ -22,6 +22,11 @@ class ReproofingOrchestrationTest {
     final ReproofingProviderPort provider=mock(ReproofingProviderPort.class);
     ReproofingServiceImpl service;
     @BeforeEach void setup(){ service=new ReproofingServiceImpl(core,nativePort,provider,policy); }
+    @Test void emptyNativePrepareIsUnavailableAndCannotOpenCase(){
+        when(nativePort.prepare(b,null)).thenReturn(Mono.empty());
+        StepVerifier.create(service.create(new CreateReproofingCaseRequest(b))).expectErrorMatches(e->e.getMessage().contains("503")).verify();
+        verifyNoInteractions(core);
+    }
     @Test void missingProviderIsUnavailableWithoutOpeningCase(){
         StepVerifier.create(new ReproofingServiceImpl(core,nativePort,null,policy).create(new CreateReproofingCaseRequest(b))).expectErrorMatches(e->e.getMessage().contains("503")).verify();
         verifyNoInteractions(core,nativePort);

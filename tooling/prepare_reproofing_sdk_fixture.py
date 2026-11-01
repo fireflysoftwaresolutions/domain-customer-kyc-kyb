@@ -152,7 +152,7 @@ def main():
         suite = ET.parse(report).getroot()
         if 'Reproofing' in suite.attrib.get('name', ''):
             reports.append({key: suite.attrib.get(key, '0') for key in ('name', 'tests', 'failures', 'errors', 'skipped')})
-    required = {'ReproofingOrchestrationTest', 'ReproofingDisabledBoundaryTest', 'ReproofingReceiverTest'}
+    required = {'ReproofingOrchestrationTest', 'ReproofingDisabledBoundaryTest', 'ReproofingReceiverTest', 'GeneratedReproofingSdkTest', 'ReproofingFixtureProviderTest'}
     if not all(any(r['name'].endswith(name) for r in reports) for name in required) or any(int(r[k]) for r in reports for k in ('failures', 'errors', 'skipped')):
         raise RuntimeError('Required actual Domain/SDK reports missing, failed or skipped')
     summary.update(candidate_sdk_version=version, candidate_sdk_sha256=sha(jar), candidate_descriptor_sha256=sha(flat),
