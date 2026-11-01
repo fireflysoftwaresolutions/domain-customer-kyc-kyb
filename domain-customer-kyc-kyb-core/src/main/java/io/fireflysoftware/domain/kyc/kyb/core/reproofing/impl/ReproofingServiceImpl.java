@@ -17,7 +17,7 @@ public final class ReproofingServiceImpl {
         return Mono.defer(()->{
             policy.binding(request.binding());
             if(provider==null) return Mono.error(ReproofingPolicyImpl.unavailable());
-            return nativePort.prepare(request.binding(),null).doOnNext(a->policy.admission(request.binding(),a))
+            return nativePort.prepare(request.binding(),null).switchIfEmpty(Mono.error(ReproofingPolicyImpl.unavailable())).doOnNext(a->policy.admission(request.binding(),a))
                 .flatMap(a->core.create(request)).flatMap(c->{
                     policy.reproofingCase(request.binding(),c);
                     if(!provider.providerId().equals(c.providerId())) return Mono.error(ReproofingPolicyImpl.unavailable());
