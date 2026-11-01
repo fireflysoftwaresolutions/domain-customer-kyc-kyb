@@ -36,6 +36,8 @@ Beneficial ownership is stored as `beneficialOwnershipDocument`. Opening a KYC o
 
 The KYC track exposes the lifecycle API (open, attach evidence, mark docs complete, PEP/adverse-media recording, verify, fail, expire, renew) and writes those transitions through the core KYC verification API. Both tracks share a single Spring Boot application, a common infrastructure layer, and the same `KycbClientFactoryImpl` for connecting to the core platform.
 
+Core KYCB is the authoritative KYC/KYB system of record; this Domain service orchestrates workflows and will integrate the third party that performs verification. No vendor is selected or live verifier supplied. Native Identity consumes purpose-bound Core recovery authorizations; a KYC/KYB status alone cannot unlock an account. Jafly remains independent. See the [identity system-of-record contract](docs/identity-system-of-record.md) for the eIDAS baseline, implemented records, assurance gaps, and vendor acceptance requirements, and the [credential-loss proofing protocol](docs/credential-loss-reproofing.md) for the current recovery boundary.
+
 ---
 
 ## Architecture
@@ -113,7 +115,7 @@ The `KybWorkflowSaga` is declared with `@Saga(name = "kyb-workflow", layerConcur
 | `POST` | `/api/v1/kyc/cases/{caseId}/expire` | Mark a previously verified KYC as expired by time. | `200 OK` |
 | `POST` | `/api/v1/kyc/cases/{caseId}/renew` | Renew a KYC verification with a new level and expiry. | `200 OK` |
 
-> **Note:** The KYC endpoints are fully defined and routed but the underlying `KycServiceImpl` currently returns `Mono.empty()` for all operations. The KYC domain logic is under active development.
+> **Note:** `KycServiceImpl` dispatches KYC sagas and status transitions through Core. These operations record workflow state; they do not supply a live identity-verification provider.
 
 ---
 
@@ -202,7 +204,7 @@ Handles `GetKybResultQuery`. Calls `KybVerificationApi.getKybVerification(partyI
 
 `KybVerificationPort` is the port for an external KYB verification provider. Its sample implementation, `SandboxKybVerificationAdapterImpl`, returns synthetic `VERIFIED` results and activates only when `integration.kyb-verification.provider=sandbox` is explicitly configured. Missing, blank, or unsupported selections do not activate this adapter. With no actual `KybVerificationPort` implementation, the required verification handler refuses startup; configuration absence is not a business `REJECTED` result.
 
-The separate `KybProviderPort` sample, `SandboxKybProviderAdapterImpl`, also requires explicit `kyb.provider=sandbox`. Its business, corporate-document, and UBO successes are synthetic. Neither adapter is a live verification provider. This service supplies no live verifier, identity reproofing, or account-recovery grant. Default, `dev`, `pre`, and `pro` configuration selects neither sample. Intentional sandbox use must explicitly configure both selectors, as shown below.
+The separate `KybProviderPort` sample, `SandboxKybProviderAdapterImpl`, also requires explicit `kyb.provider=sandbox`. Its business, corporate-document, and UBO successes are synthetic. Neither adapter is a live verification provider or supplies identity reproofing or an account-recovery grant. The separate credential-loss proofing protocol requires its own actual provider adapter and Core authorization. Default, `dev`, `pre`, and `pro` configuration selects neither sample. Intentional sandbox use must explicitly configure both selectors, as shown below.
 
 ---
 
