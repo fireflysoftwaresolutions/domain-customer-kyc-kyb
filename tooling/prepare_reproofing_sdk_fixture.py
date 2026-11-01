@@ -184,4 +184,20 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if os.environ.get('GITHUB_ACTIONS') != 'true':
+        raise SystemExit('Hosted-only qualification; local JVM execution is forbidden')
+    fixture = ROOT / '.qualification/core/tooling/reproofing_postgres_fixture.py'
+    owned = False
+    try:
+        if not os.environ.get('REPROOFING_TEST_R2DBC_URL'):
+            subprocess.run([sys.executable,str(fixture)],check=True)
+            owned = True
+            for line in Path(os.environ['GITHUB_ENV']).read_text().splitlines():
+                name,separator,value=line.partition('=')
+                if separator and name.startswith('REPROOFING_TEST_'):
+                    os.environ[name]=value
+        main()
+    finally:
+        if owned:
+            subprocess.run([sys.executable,str(fixture),'stop'],check=True)
+
