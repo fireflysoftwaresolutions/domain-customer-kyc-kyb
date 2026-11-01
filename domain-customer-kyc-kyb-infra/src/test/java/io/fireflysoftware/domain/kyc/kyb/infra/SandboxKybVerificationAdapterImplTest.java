@@ -5,8 +5,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,19 +35,11 @@ class SandboxKybVerificationAdapterImplTest {
 
     @Test
     void missingProviderRefusesRequiredConsumerStartup() {
-        runner.withUserConfiguration(RequiredProviderConfiguration.class).run(context -> {
+        runner.withUserConfiguration(RequiredConsumer.class).run(context -> {
             assertThat(context).hasFailed();
             assertThat(context.getStartupFailure())
                     .hasRootCauseInstanceOf(NoSuchBeanDefinitionException.class);
         });
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    static class RequiredProviderConfiguration {
-        @Bean
-        RequiredConsumer requiredConsumer(KybVerificationPort provider) {
-            return new RequiredConsumer(provider);
-        }
     }
 
     record RequiredConsumer(KybVerificationPort provider) {}

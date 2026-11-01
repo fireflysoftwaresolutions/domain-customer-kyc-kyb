@@ -125,7 +125,7 @@ class RequestKybVerificationHandlerTest {
                 .build();
 
         StepVerifier.create(handler.doHandle(cmd))
-                .expectErrorSame(providerFailure)
+                .expectErrorMatches(error -> error == providerFailure)
                 .verify();
 
         verifyNoInteractions(kybVerificationApi);
