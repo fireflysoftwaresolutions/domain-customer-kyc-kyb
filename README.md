@@ -34,7 +34,7 @@ Developed by the Firefly Software Foundation. [dev@fireflysoftware.io](mailto:de
 
 Beneficial ownership is stored as `beneficialOwnershipDocument`. Opening a KYC or KYB case, and attaching KYC evidence, each have a compensating delete on the core. The KYB track provides the primary case-management workflow; documentary, corporate, and UBO verification still require a separately integrated live provider. It orchestrates a five-step distributed saga — `createKybCase → (submitCorporateDocuments ‖ registerUbos) → requestVerification → evaluateResult` — coordinating calls to the downstream `core-common-kycb-mgmt` service via a generated SDK. Every completed saga step publishes a domain event to Kafka, enabling downstream consumers (such as `exp-onboarding` or `core-lending`) to react to compliance outcomes without coupling directly to this service.
 
-The KYC track exposes the lifecycle API (open, attach evidence, mark docs complete, PEP/adverse-media recording, verify, fail, expire, renew) and writes those transitions through the core KYC verification API. Both tracks share a single Spring Boot application, a common infrastructure layer, and the same `KycbClientFactory` for connecting to the core platform.
+The KYC track exposes the lifecycle API (open, attach evidence, mark docs complete, PEP/adverse-media recording, verify, fail, expire, renew) and writes those transitions through the core KYC verification API. Both tracks share a single Spring Boot application, a common infrastructure layer, and the same `KycbClientFactoryImpl` for connecting to the core platform.
 
 ---
 
@@ -59,7 +59,7 @@ HTTP clients
              │  SDK client beans
              ▼
 ┌─────────────────────────────┐
-│  -infra  (Adapters)         │  KycbClientFactory, KybVerificationPort,
+│  -infra  (Adapters)         │  KycbClientFactoryImpl, KybVerificationPort,
 │  core-common-kycb-mgmt SDK  │  SandboxKybVerificationAdapterImpl
 └────────────┬────────────────┘
              │  HTTP (REST)
@@ -81,7 +81,7 @@ The `KybWorkflowSaga` is declared with `@Saga(name = "kyb-workflow", layerConcur
 |--------|---------|
 | `domain-customer-kyc-kyb-interfaces` | Public request/response DTOs shared between the web layer and any consumer of the service's own SDK: `CreateKybCaseRequest`, `SubmitCorporateDocumentsRequest`, `RegisterUbosRequest`, `KybCaseResponse`, `KybResultResponse`. |
 | `domain-customer-kyc-kyb-core` | All domain logic: CQRS command/query objects, command handlers, query handlers, the `KybWorkflowSaga`, `KybWorkflowConstants`, `KybWorkflowInput`, and the `KycService` implementation. |
-| `domain-customer-kyc-kyb-infra` | Infrastructure adapters: `KycbClientFactory` (creates reactive API client beans for `core-common-kycb-mgmt`), `KycbClientConfigurationProperties`, the `KybVerificationPort` interface, `SandboxKybVerificationAdapterImpl`, and `KybVerificationResult`. |
+| `domain-customer-kyc-kyb-infra` | Infrastructure adapters: `KycbClientFactoryImpl` (creates reactive API client beans for `core-common-kycb-mgmt`), `KycbClientConfigurationProperties`, the `KybVerificationPort` interface, `SandboxKybVerificationAdapterImpl`, and `KybVerificationResult`. |
 | `domain-customer-kyc-kyb-web` | Spring Boot application entry point (`CustomerDomainKycKybApplication`), `KybController`, `KycController`, and `application.yaml`. |
 | `domain-customer-kyc-kyb-sdk` | OpenAPI-generated Java client SDK published for other services that need to call this service. Includes `KybApi`, `KycApi`, generated model classes, and a reactive `ApiClient`. |
 
@@ -212,7 +212,7 @@ The separate `KybProviderPort` sample, `SandboxKybProviderAdapterImpl`, also req
 
 | Service | Client | APIs Used |
 |---------|--------|-----------|
-| `core-common-kycb-mgmt` | `KycbClientFactory` wrapping the `core-common-kycb-sdk` `ApiClient` | `ComplianceCasesApi`, `CorporateDocumentsApi`, `UboManagementApi`, `KybVerificationApi`, `KycVerificationApi`, `KycVerificationDocumentsApi`, `VerificationDocumentsApi` |
+| `core-common-kycb-mgmt` | `KycbClientFactoryImpl` wrapping the `core-common-kycb-sdk` `ApiClient` | `ComplianceCasesApi`, `CorporateDocumentsApi`, `UboManagementApi`, `KybVerificationApi`, `KycVerificationApi`, `KycVerificationDocumentsApi`, `VerificationDocumentsApi` |
 | External KYB provider | `KybVerificationPort` (explicit provider required) | Register another adapter for a live provider |
 | Kafka | Firefly EDA (publisher-type: KAFKA) | Topic `domain-layer` — events emitted by `@StepEvent` on each saga step |
 

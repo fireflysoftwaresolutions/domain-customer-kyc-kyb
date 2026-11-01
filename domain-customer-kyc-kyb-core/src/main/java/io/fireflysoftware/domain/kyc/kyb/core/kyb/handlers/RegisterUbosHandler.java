@@ -23,7 +23,7 @@ import io.fireflysoftware.domain.kyc.kyb.core.kyb.commands.RegisterUbosCommand;
 import io.fireflysoftware.domain.kyc.kyb.core.kyb.commands.SubmissionResult;
 import io.fireflysoftware.domain.kyc.kyb.core.kyb.commands.UboData;
 import io.fireflysoftware.domain.kyc.kyb.core.kyb.mappers.KybMapper;
-import io.fireflysoftware.domain.kyc.kyb.core.util.IdempotencyKeys;
+import io.fireflysoftware.domain.kyc.kyb.core.util.IdempotencyKeysImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.fireflyframework.cqrs.annotations.CommandHandlerComponent;
@@ -67,7 +67,7 @@ public class RegisterUbosHandler extends CommandHandler<RegisterUbosCommand, Sub
         // the same key on every retry (handler retry policy is retries=2).
         // Without this, a transient failure followed by a successful retry
         // would create a duplicate UBO row in core.
-        String idempotencyKey = IdempotencyKeys.of(
+        String idempotencyKey = IdempotencyKeysImpl.of(
                 "register-ubo", partyId.toString(),
                 ubo.getNaturalPersonId() != null ? ubo.getNaturalPersonId().toString() : "null");
 

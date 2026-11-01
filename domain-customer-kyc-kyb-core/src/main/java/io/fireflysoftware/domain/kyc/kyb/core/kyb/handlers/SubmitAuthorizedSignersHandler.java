@@ -23,7 +23,7 @@ import io.fireflysoftware.domain.kyc.kyb.core.kyb.commands.SignerData;
 import io.fireflysoftware.domain.kyc.kyb.core.kyb.commands.SubmissionResult;
 import io.fireflysoftware.domain.kyc.kyb.core.kyb.commands.SubmitAuthorizedSignersCommand;
 import io.fireflysoftware.domain.kyc.kyb.core.kyb.mappers.KybMapper;
-import io.fireflysoftware.domain.kyc.kyb.core.util.IdempotencyKeys;
+import io.fireflysoftware.domain.kyc.kyb.core.util.IdempotencyKeysImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.fireflyframework.cqrs.annotations.CommandHandlerComponent;
@@ -82,7 +82,7 @@ public class SubmitAuthorizedSignersHandler
         // same key on every retry (handler retry policy is retries=2). Without
         // this, a transient failure followed by a successful retry would
         // create a duplicate POA row.
-        String idempotencyKey = IdempotencyKeys.of(
+        String idempotencyKey = IdempotencyKeysImpl.of(
                 "submit-authorized-signer", partyId.toString(),
                 signer.getAttorneyId().toString());
 
