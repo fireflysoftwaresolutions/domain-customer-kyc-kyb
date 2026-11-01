@@ -25,17 +25,16 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 /**
- * Deterministic sample KYB verification used when no external provider is configured.
+ * Deterministic sample KYB verification available only through explicit sandbox selection.
  * Every case returns {@code VERIFIED}.
  */
 @Slf4j
-@Component
+@Component("sandboxKybVerificationAdapter")
 @ConditionalOnProperty(
         name = "integration.kyb-verification.provider",
-        havingValue = "sandbox",
-        matchIfMissing = true
+        havingValue = "sandbox"
 )
-public class SandboxKybVerificationAdapter implements KybVerificationPort {
+public class SandboxKybVerificationAdapterImpl implements KybVerificationPort {
 
     @Override
     public Mono<KybVerificationResult> verify(UUID caseId) {

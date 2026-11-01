@@ -34,12 +34,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Deterministic sample KYB provider used when no external provider is configured.
+ * Deterministic sample KYB provider available only through explicit sandbox selection.
  */
 @Slf4j
-@Component
-@ConditionalOnProperty(name = "kyb.provider", havingValue = "sandbox", matchIfMissing = true)
-public class SandboxKybProviderAdapter implements KybProviderPort {
+@Component("sandboxKybProviderAdapter")
+@ConditionalOnProperty(name = "kyb.provider", havingValue = "sandbox")
+public class SandboxKybProviderAdapterImpl implements KybProviderPort {
 
     static final String PROVIDER_NAME = "SANDBOX";
     static final int BUSINESS_SCORE = 85;
