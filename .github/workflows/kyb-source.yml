@@ -1,0 +1,62 @@
+name: KYB explicit provider source qualification
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kyb-source-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: fireflysoftwaresolutions/firefly-parent
+          ref: 6442bd51733ade4d5f4583e1afe812dd2c520b40
+          path: .qualification/firefly-parent
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '25'
+      - id: core
+        run: echo "pin=$(cat tooling/reproofing-core-source.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: fireflysoftwaresolutions/core-common-kycb-mgmt
+          ref: ${{ steps.core.outputs.pin }}
+          path: .qualification/core
+      - name: YAML parser
+        run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Complete reactor with original producer and generated candidate SDK
+        run: python3 tooling/prepare_reproofing_sdk_fixture.py
+      - name: Require actual provider-selection and persistence regression reports
+        if: success()
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import json
+          import subprocess
+          import xml.etree.ElementTree as ET
+          reports = [ET.parse(p).getroot() for p in Path('.').glob('domain-customer-kyc-kyb-*/target/surefire-reports/TEST-*.xml')]
+          required = ('SandboxKybVerificationAdapter', 'SandboxKybProviderAdapter', 'RequestKybVerificationHandlerTest')
+          for name in required:
+              selected = [r for r in reports if name in r.attrib['name']]
+              assert selected, 'Missing required source regression: ' + name
+              assert all(int(r.attrib['tests']) > 0 and not any(int(r.attrib[k]) for k in ('failures', 'errors', 'skipped')) for r in selected)
+          summary = {'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(), 'source_parent': '6442bd51733ade4d5f4583e1afe812dd2c520b40', 'framework_train': '26.10.23', 'scope': 'Source reactor and synthetic selection tests only; no live KYB provider or release qualification', 'reports': [{k: r.attrib[k] for k in ('name', 'tests', 'failures', 'errors', 'skipped')} for r in reports]}
+          Path('.qualification/kyb-source-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          PYTHON
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: success()
+        with:
+          name: kyb-source-summary
+          path: .qualification/kyb-source-summary.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

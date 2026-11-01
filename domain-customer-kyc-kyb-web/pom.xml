@@ -22,6 +22,8 @@
     </properties>
 
     <dependencies>
+        <dependency><groupId>org.fireflyframework</groupId><artifactId>fireflyframework-security-resource-server</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
         <!-- Internal modules -->
         <dependency>
             <groupId>io.fireflysoftware</groupId>

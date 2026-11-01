@@ -30,9 +30,9 @@ import java.util.UUID;
  * over a {@code ":"}-joined input string in UTF-8 so the output is always a
  * valid UUID string and fits the standard {@code Idempotency-Key} HTTP header.</p>
  */
-public final class IdempotencyKeys {
+public final class IdempotencyKeysImpl {
 
-    private IdempotencyKeys() {
+    private IdempotencyKeysImpl() {
         // utility
     }
 

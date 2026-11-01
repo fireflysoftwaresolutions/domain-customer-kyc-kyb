@@ -35,14 +35,14 @@ import org.springframework.web.reactive.function.client.WebClient;
  * Creates reactive API client beans for the core-common-kycb-mgmt downstream service.
  * All beans share a single {@link ApiClient} configured from {@link KycbClientConfigurationProperties}.
  */
-@Component
-public class KycbClientFactory {
+@Component("kycbClientFactory")
+public class KycbClientFactoryImpl {
 
     private static final int MAX_IN_MEMORY_SIZE = 20 * 1024 * 1024;
 
     private final ApiClient apiClient;
 
-    public KycbClientFactory(KycbClientConfigurationProperties props) {
+    public KycbClientFactoryImpl(KycbClientConfigurationProperties props) {
         WebClient webClient = ApiClient.buildWebClientBuilder()
                 .codecs(c -> c.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_SIZE))
                 .build();

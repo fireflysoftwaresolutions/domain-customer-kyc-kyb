@@ -30,11 +30,13 @@ Developed by the Firefly Software Foundation. [dev@fireflysoftware.io](mailto:de
 
 ## Overview
 
-`domain-customer-kyc-kyb` is the domain service responsible for all compliance due-diligence processes applied to Firefly customers. It handles two distinct compliance tracks: **KYC** (Know Your Customer) for natural persons and **KYB** (Know Your Business) for legal entities. The service exposes a reactive REST API and internally routes commands and queries through the Firefly CQRS framework (`fireflyframework-cqrs`).
+`domain-customer-kyc-kyb` provides compliance case-management and workflow orchestration for Firefly customers. It handles two distinct compliance tracks: **KYC** (Know Your Customer) for natural persons and **KYB** (Know Your Business) for legal entities. The service exposes a reactive REST API and internally routes commands and queries through the Firefly CQRS framework (`fireflyframework-cqrs`).
 
-Beneficial ownership is stored as `beneficialOwnershipDocument`. Opening a KYC or KYB case, and attaching KYC evidence, each have a compensating delete on the core. The KYB track is the primary, fully implemented flow. It orchestrates a five-step distributed saga — `createKybCase → (submitCorporateDocuments ‖ registerUbos) → requestVerification → evaluateResult` — coordinating calls to the downstream `core-common-kycb-mgmt` service via a generated SDK. Every completed saga step publishes a domain event to Kafka, enabling downstream consumers (such as `exp-onboarding` or `core-lending`) to react to compliance outcomes without coupling directly to this service.
+Beneficial ownership is stored as `beneficialOwnershipDocument`. Opening a KYC or KYB case, and attaching KYC evidence, each have a compensating delete on the core. The KYB track provides the primary case-management workflow; documentary, corporate, and UBO verification still require a separately integrated live provider. It orchestrates a five-step distributed saga — `createKybCase → (submitCorporateDocuments ‖ registerUbos) → requestVerification → evaluateResult` — coordinating calls to the downstream `core-common-kycb-mgmt` service via a generated SDK. Every completed saga step publishes a domain event to Kafka, enabling downstream consumers (such as `exp-onboarding` or `core-lending`) to react to compliance outcomes without coupling directly to this service.
 
-The KYC track exposes the lifecycle API (open, attach evidence, mark docs complete, PEP/adverse-media recording, verify, fail, expire, renew) and writes those transitions through the core KYC verification API. Both tracks share a single Spring Boot application, a common infrastructure layer, and the same `KycbClientFactory` for connecting to the core platform.
+The KYC track exposes the lifecycle API (open, attach evidence, mark docs complete, PEP/adverse-media recording, verify, fail, expire, renew) and writes those transitions through the core KYC verification API. Both tracks share a single Spring Boot application, a common infrastructure layer, and the same `KycbClientFactoryImpl` for connecting to the core platform.
+
+Core KYCB is the authoritative KYC/KYB system of record; this Domain service orchestrates workflows and will integrate the third party that performs verification. No vendor is selected or live verifier supplied. Native Identity consumes purpose-bound Core recovery authorizations; a KYC/KYB status alone cannot unlock an account. Jafly remains independent. See the [identity system-of-record contract](docs/identity-system-of-record.md) for the eIDAS baseline, implemented records, assurance gaps, and vendor acceptance requirements, and the [credential-loss proofing protocol](docs/credential-loss-reproofing.md) for the current recovery boundary.
 
 ---
 
@@ -59,8 +61,8 @@ HTTP clients
              │  SDK client beans
              ▼
 ┌─────────────────────────────┐
-│  -infra  (Adapters)         │  KycbClientFactory, KybVerificationPort,
-│  core-common-kycb-mgmt SDK  │  SandboxKybVerificationAdapter
+│  -infra  (Adapters)         │  KycbClientFactoryImpl, KybVerificationPort,
+│  core-common-kycb-mgmt SDK  │  SandboxKybVerificationAdapterImpl
 └────────────┬────────────────┘
              │  HTTP (REST)
              ▼
@@ -81,7 +83,7 @@ The `KybWorkflowSaga` is declared with `@Saga(name = "kyb-workflow", layerConcur
 |--------|---------|
 | `domain-customer-kyc-kyb-interfaces` | Public request/response DTOs shared between the web layer and any consumer of the service's own SDK: `CreateKybCaseRequest`, `SubmitCorporateDocumentsRequest`, `RegisterUbosRequest`, `KybCaseResponse`, `KybResultResponse`. |
 | `domain-customer-kyc-kyb-core` | All domain logic: CQRS command/query objects, command handlers, query handlers, the `KybWorkflowSaga`, `KybWorkflowConstants`, `KybWorkflowInput`, and the `KycService` implementation. |
-| `domain-customer-kyc-kyb-infra` | Infrastructure adapters: `KycbClientFactory` (creates reactive API client beans for `core-common-kycb-mgmt`), `KycbClientConfigurationProperties`, the `KybVerificationPort` interface, `SandboxKybVerificationAdapter`, and `KybVerificationResult`. |
+| `domain-customer-kyc-kyb-infra` | Infrastructure adapters: `KycbClientFactoryImpl` (creates reactive API client beans for `core-common-kycb-mgmt`), `KycbClientConfigurationProperties`, the `KybVerificationPort` interface, `SandboxKybVerificationAdapterImpl`, and `KybVerificationResult`. |
 | `domain-customer-kyc-kyb-web` | Spring Boot application entry point (`CustomerDomainKycKybApplication`), `KybController`, `KycController`, and `application.yaml`. |
 | `domain-customer-kyc-kyb-sdk` | OpenAPI-generated Java client SDK published for other services that need to call this service. Includes `KybApi`, `KycApi`, generated model classes, and a reactive `ApiClient`. |
 
@@ -113,7 +115,7 @@ The `KybWorkflowSaga` is declared with `@Saga(name = "kyb-workflow", layerConcur
 | `POST` | `/api/v1/kyc/cases/{caseId}/expire` | Mark a previously verified KYC as expired by time. | `200 OK` |
 | `POST` | `/api/v1/kyc/cases/{caseId}/renew` | Renew a KYC verification with a new level and expiry. | `200 OK` |
 
-> **Note:** The KYC endpoints are fully defined and routed but the underlying `KycServiceImpl` currently returns `Mono.empty()` for all operations. The KYC domain logic is under active development.
+> **Note:** `KycServiceImpl` dispatches KYC sagas and status transitions through Core. These operations record workflow state; they do not supply a live identity-verification provider.
 
 ---
 
@@ -200,7 +202,9 @@ Handles `GetKybResultQuery`. Calls `KybVerificationApi.getKybVerification(partyI
 
 ### KYB Verification Port
 
-`KybVerificationPort` is the port for an external KYB verification provider. The default implementation is `SandboxKybVerificationAdapter`, which returns `VERIFIED` for every case. It activates when `integration.kyb-verification.provider` is `sandbox` or absent. Set the property to another value and register a Spring component that implements the same port to use a different provider.
+`KybVerificationPort` is the port for an external KYB verification provider. Its sample implementation, `SandboxKybVerificationAdapterImpl`, returns synthetic `VERIFIED` results and activates only when `integration.kyb-verification.provider=sandbox` is explicitly configured. Missing, blank, or unsupported selections do not activate this adapter. With no actual `KybVerificationPort` implementation, the required verification handler refuses startup; configuration absence is not a business `REJECTED` result.
+
+The separate `KybProviderPort` sample, `SandboxKybProviderAdapterImpl`, also requires explicit `kyb.provider=sandbox`. Its business, corporate-document, and UBO successes are synthetic. Neither adapter is a live verification provider or supplies identity reproofing or an account-recovery grant. The separate credential-loss proofing protocol requires its own actual provider adapter and Core authorization. Default, `dev`, `pre`, and `pro` configuration selects neither sample. Intentional sandbox use must explicitly configure both selectors, as shown below.
 
 ---
 
@@ -210,8 +214,8 @@ Handles `GetKybResultQuery`. Calls `KybVerificationApi.getKybVerification(partyI
 
 | Service | Client | APIs Used |
 |---------|--------|-----------|
-| `core-common-kycb-mgmt` | `KycbClientFactory` wrapping the `core-common-kycb-sdk` `ApiClient` | `ComplianceCasesApi`, `CorporateDocumentsApi`, `UboManagementApi`, `KybVerificationApi`, `KycVerificationApi`, `KycVerificationDocumentsApi`, `VerificationDocumentsApi` |
-| External KYB provider | `KybVerificationPort` (sandbox sample by default) | Register another adapter for a live provider |
+| `core-common-kycb-mgmt` | `KycbClientFactoryImpl` wrapping the `core-common-kycb-sdk` `ApiClient` | `ComplianceCasesApi`, `CorporateDocumentsApi`, `UboManagementApi`, `KybVerificationApi`, `KycVerificationApi`, `KycVerificationDocumentsApi`, `VerificationDocumentsApi` |
+| External KYB provider | `KybVerificationPort` (explicit provider required) | Register another adapter for a live provider |
 | Kafka | Firefly EDA (publisher-type: KAFKA) | Topic `domain-layer` — events emitted by `@StepEvent` on each saga step |
 
 ### Downstream — services that consume this microservice
@@ -308,11 +312,19 @@ To activate the `dev` profile for `DEBUG`-level logging:
 mvn spring-boot:run -pl domain-customer-kyc-kyb-web -Dspring-boot.run.profiles=dev
 ```
 
-To replace the sandbox KYB verification with another provider, set the property and register an adapter for that name:
+To use a live KYB verifier, register an actual `KybVerificationPort` adapter and explicitly configure its provider selection. Setting a name alone does not create an integration:
 
 ```bash
 -Dintegration.kyb-verification.provider=<provider-name>
 ```
+
+For isolated synthetic development only, explicitly select both sample ports:
+
+```bash
+-Dintegration.kyb-verification.provider=sandbox -Dkyb.provider=sandbox
+```
+
+Do not select these samples for live verification. An unavailable provider must remain an operational failure, rather than a fabricated verification outcome.
 
 ---
 
@@ -321,6 +333,10 @@ To replace the sandbox KYB verification with another provider, set the property 
 ```bash
 mvn clean verify
 ```
+
+Provider-selection context tests also run in the core and infra modules. They cover absent, blank, unsupported, and explicit sandbox selection, stable bean IDs, and startup refusal for a required provider consumer. The provider-error regression checks that no verification is persisted.
+
+The nonpublishing `KYB explicit provider source qualification` PR workflow runs the complete reactor with Java 25. Its temporary relativePath overlay selects source parent `6442bd51733ade4d5f4583e1afe812dd2c520b40` and one Jafly 26.10.23 train. It neither installs a modified released parent nor qualifies live-provider acceptance.
 
 Unit tests are located under `domain-customer-kyc-kyb-core/src/test/java`:
 

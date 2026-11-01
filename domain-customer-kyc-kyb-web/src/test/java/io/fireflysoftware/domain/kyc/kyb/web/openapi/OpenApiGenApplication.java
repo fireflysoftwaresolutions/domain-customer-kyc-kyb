@@ -31,9 +31,11 @@ import org.springframework.context.annotation.ComponentScan;
  * Maven profile with {@code useTestClasspath=true}.
  */
 @EnableOpenApiGen
-@ComponentScan(basePackages = "io.fireflysoftware.domain.kyc.kyb.web.controller")
+@ComponentScan(basePackages = {"io.fireflysoftware.domain.kyc.kyb.web.controller", "io.fireflysoftware.domain.kyc.kyb.web.reproofing.impl"})
 public class OpenApiGenApplication {
     public static void main(String[] args) {
-        SpringApplication.run(OpenApiGenApplication.class, args);
+        var app = new SpringApplication(OpenApiGenApplication.class);
+        app.setDefaultProperties(java.util.Map.of("firefly.security.resource-server.enabled", "false"));
+        app.run(args);
     }
 }

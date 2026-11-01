@@ -1,0 +1,36 @@
+package io.fireflysoftware.domain.kyc.kyb.web.reproofing.impl;
+
+import io.fireflysoftware.domain.kyc.kyb.core.reproofing.impl.ReproofingServiceImpl;
+import io.fireflysoftware.domain.kyc.kyb.infra.reproofing.*;
+import io.swagger.v3.oas.annotations.Operation;
+import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
+
+@RestController
+@RequestMapping("/api/v1/identity-recovery/cases")
+public final class ReproofingControllerImpl {
+    private final org.springframework.beans.factory.ObjectProvider<ReproofingServiceImpl> services;
+    public ReproofingControllerImpl(org.springframework.beans.factory.ObjectProvider<ReproofingServiceImpl> services){this.services=services;}
+    private ReproofingServiceImpl service(){var service=services.getIfAvailable(); if(service==null) throw io.fireflysoftware.domain.kyc.kyb.core.reproofing.impl.ReproofingPolicyImpl.unavailable(); return service;}
+    @org.fireflyframework.web.idempotency.annotation.DisableIdempotency
+    @PostMapping @ResponseStatus(HttpStatus.CREATED) @Operation(operationId="createReproofingJourney")
+    public Mono<ReproofingJourney> create(@RequestBody CreateReproofingCaseRequest r){return service().create(r);}
+    @org.fireflyframework.web.idempotency.annotation.DisableIdempotency
+    @PostMapping("/{caseId}/inspect") @Operation(operationId="inspectReproofingJourney")
+    public Mono<ReproofingCaseResponse> inspect(@PathVariable UUID caseId,@RequestBody ConfirmReproofingRequest r){return service().inspect(caseId,r);}
+    @org.fireflyframework.web.idempotency.annotation.DisableIdempotency
+    @PostMapping("/{caseId}/confirm") @Operation(operationId="confirmReproofingJourney")
+    public Mono<ReproofingCaseResponse> confirm(@PathVariable UUID caseId,@RequestBody ConfirmReproofingRequest r){return service().confirm(caseId,r);}
+    @org.fireflyframework.web.idempotency.annotation.DisableIdempotency
+    @PostMapping("/{caseId}/authorizations/consume") @Operation(operationId="consumeReproofingJourney")
+    public Mono<ReproofingAuthorization> consume(@PathVariable UUID caseId,@RequestBody ReproofingAuthorizationRequest r){return service().consume(caseId,r);}
+    @org.fireflyframework.web.idempotency.annotation.DisableIdempotency
+    @PostMapping("/{caseId}/authorizations/verify") @Operation(operationId="verifyReproofingJourney")
+    public Mono<ReproofingAuthorization> verify(@PathVariable UUID caseId,@RequestBody ReproofingAuthorizationRequest r){return service().verify(caseId,r);}
+    @org.fireflyframework.web.idempotency.annotation.DisableIdempotency
+    @PostMapping("/{caseId}/executions") @Operation(operationId="recordReproofingJourney")
+    public Mono<ReproofingCaseResponse> record(@PathVariable UUID caseId,@RequestBody RecordReproofingExecutionRequest r){return service().record(caseId,r);}
+}
