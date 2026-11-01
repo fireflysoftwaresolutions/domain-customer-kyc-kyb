@@ -22,6 +22,28 @@ class ReproofingOrchestrationTest {
     final ReproofingProviderPort provider=mock(ReproofingProviderPort.class);
     ReproofingServiceImpl service;
     @BeforeEach void setup(){ service=new ReproofingServiceImpl(core,nativePort,provider,policy); }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void validPreparationWithoutReplacementEligibilityStartsSameGenericJourney(boolean decoy){
+        var target=decoy?new ReproofingBinding(b.issuer(),b.realm(),b.tenant(),"opaque-decoy",UUID.randomUUID(),b.population(),b.purpose(),b.generation(),b.credentialRevision(),"opaque-decoy-nonce"):b;
+        var prepared=new ReproofingCaseResponse(c.caseId(),c.providerStartId(),target,c.status(),c.providerId(),c.policyId(),c.providerSessionId(),c.expiresAt(),null);
+        when(nativePort.prepare(target,null)).thenReturn(Mono.just(new ReproofingAdmission(target,false,c.expiresAt())));
+        when(core.create(new CreateReproofingCaseRequest(target))).thenReturn(Mono.just(prepared));
+        when(provider.providerId()).thenReturn("provider");
+        when(provider.begin(prepared)).thenReturn(Mono.just(new ProviderStart("session","https://proof.test/journey")));
+        when(core.bind(c.caseId(),new BindReproofingSessionRequest(target,"session"))).thenReturn(Mono.just(prepared));
+        StepVerifier.create(service.create(new CreateReproofingCaseRequest(target))).assertNext(j->{
+            assertThat(j.reproofingCase().authorization()).isNull();assertThat(j.verificationUrl()).isEqualTo("https://proof.test/journey");
+        }).verifyComplete();
+        when(nativePort.admit(target,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(target,false,c.expiresAt())));
+        StepVerifier.create(service.confirm(c.caseId(),new ConfirmReproofingRequest(target))).expectErrorMatches(error->error.getMessage().contains("403")).verify();
+        verify(core,never()).confirm(any(),any());
+    }
+    @Test void expiredExecutedAuditReconciliationDoesNotRequireFreshAdmission(){
+        var request=new RecordReproofingExecutionRequest(b,UUID.randomUUID(),UUID.randomUUID(),"CREDENTIALS_REPLACED");
+        var executed=new ReproofingCaseResponse(c.caseId(),c.providerStartId(),b,"EXECUTED",c.providerId(),c.policyId(),c.providerSessionId(),now.minusSeconds(1),null);
+        when(core.record(c.caseId(),request)).thenReturn(Mono.just(executed));
+        StepVerifier.create(service.record(c.caseId(),request)).expectNext(executed).verifyComplete();verifyNoInteractions(nativePort,provider);
+    }
     @Test void emptyNativePrepareIsUnavailableAndCannotOpenCase(){
         when(nativePort.prepare(b,null)).thenReturn(Mono.empty());
         StepVerifier.create(service.create(new CreateReproofingCaseRequest(b))).expectErrorMatches(e->e.getMessage().contains("503")).verify();
