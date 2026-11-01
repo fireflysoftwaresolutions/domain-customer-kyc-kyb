@@ -27,13 +27,13 @@ public final class ReproofingBodyLimitFilterImpl implements WebFilter {
  private Mono<Void> bounded(ServerWebExchange exchange,WebFilterChain chain){
   exchange.getResponse().getHeaders().setCacheControl("no-store");
   if(exchange.getRequest().getHeaders().getContentLength()>32768){exchange.getResponse().setStatusCode(HttpStatus.PAYLOAD_TOO_LARGE);return exchange.getResponse().setComplete();}
-  return DataBufferUtils.join(exchange.getRequest().getBody(),32768).map(buffer->{
+  return DataBufferUtils.join(exchange.getRequest().getBody(),32768).timeout(java.time.Duration.ofSeconds(5)).map(buffer->{
    byte[] bytes=new byte[buffer.readableByteCount()];buffer.read(bytes);DataBufferUtils.release(buffer);return bytes;
   }).defaultIfEmpty(new byte[0]).flatMap(bytes->{
    var request=new ServerHttpRequestDecorator(exchange.getRequest()){
     @Override public Flux<DataBuffer> getBody(){return Flux.defer(()->Flux.just(exchange.getResponse().bufferFactory().wrap(bytes)));}
    };
    return chain.filter(exchange.mutate().request(request).build());
-  }).onErrorResume(DataBufferLimitException.class,error->{exchange.getResponse().setStatusCode(HttpStatus.PAYLOAD_TOO_LARGE);return exchange.getResponse().setComplete();});
+  }).onErrorResume(java.util.concurrent.TimeoutException.class,error->{exchange.getResponse().setStatusCode(HttpStatus.REQUEST_TIMEOUT);return exchange.getResponse().setComplete();}).onErrorResume(DataBufferLimitException.class,error->{exchange.getResponse().setStatusCode(HttpStatus.PAYLOAD_TOO_LARGE);return exchange.getResponse().setComplete();});
  }
 }

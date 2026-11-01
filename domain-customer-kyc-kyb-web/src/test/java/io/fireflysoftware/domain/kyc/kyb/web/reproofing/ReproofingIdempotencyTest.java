@@ -38,8 +38,8 @@ class ReproofingIdempotencyTest {
             var product=context.getBean(ReproofingBodyLimitFilterImpl.class);
             var cache=mock(IdempotencyCache.class);
             when(cache.get(any())).thenReturn(Mono.error(new AssertionError("Recovery must not read generic cached authority")));
-            var props=new IdempotencyProperties();props.setHeaderName("X-Custom-Cache");
-            var framework=new IdempotencyWebFilter(props,cache);
+            var props=new IdempotencyProperties();props.setNamespace("reproofing-test");props.setHeaderName("X-Custom-Cache");
+            var framework=new IdempotencyWebFilter(props,cache,exchange->Mono.just("fixture-scope"));
             var calls=new AtomicInteger();
             for(String path:List.of("/api/v1/identity-recovery/cases","/internal/identity-recovery/evidence")){
                 var exchange=MockServerWebExchange.from(MockServerHttpRequest.post(path).header("X-Custom-Cache","same-key"));
