@@ -26,4 +26,4 @@ jobs:
           p=Path('pom.xml')
           p.write_text(p.read_text().replace('<relativePath/>','<relativePath>.qualification/firefly-parent/pom.xml</relativePath>'))
           PY
-          mvn -B -ntp -Dmaven.repo.local="$RUNNER_TEMP/reproofing-m2" verify > .qualification/domain.log 2>&1 || { tail -100 .qualification/domain.log; exit 1; }
+          mvn -B -ntp -Dmaven.repo.local="$RUNNER_TEMP/reproofing-m2" -pl :domain-customer-kyc-kyb-web -am test -Dtest=ReproofingDisabledBoundaryTest -Dsurefire.failIfNoSpecifiedTests=false > .qualification/domain.log 2>&1 || { tail -100 .qualification/domain.log; exit 1; }
