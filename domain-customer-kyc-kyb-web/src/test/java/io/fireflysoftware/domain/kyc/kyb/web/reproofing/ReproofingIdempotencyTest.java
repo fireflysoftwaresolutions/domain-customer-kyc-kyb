@@ -20,6 +20,17 @@ import static org.mockito.Mockito.*;
 
 class ReproofingIdempotencyTest {
     @RestController static class Endpoint { public void route(){} }
+    @Test void unfinishedRecoveryBodyTimesOutWithoutDispatch(){
+        try(var context=new AnnotationConfigApplicationContext(ReproofingBodyLimitFilterImpl.class)){
+            var product=context.getBean(ReproofingBodyLimitFilterImpl.class);
+            var exchange=MockServerWebExchange.from(MockServerHttpRequest.post("/api/v1/identity-recovery/cases").body(reactor.core.publisher.Flux.never()));
+            var calls=new AtomicInteger();
+            reactor.test.StepVerifier.withVirtualTime(()->product.filter(exchange,downstream->{calls.incrementAndGet();return Mono.empty();}))
+                .thenAwait(java.time.Duration.ofSeconds(6)).expectComplete().verify(java.time.Duration.ofSeconds(1));
+            assertThat(exchange.getResponse().getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.REQUEST_TIMEOUT);
+            assertThat(calls.get()).isZero();
+        }
+    }
     @Test void actualGenericFrameworkCacheIsBypassedForRecoveryEvenWithCustomHeader() throws Exception {
         try(var context=new AnnotationConfigApplicationContext()){
             context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test",Map.of("firefly.web.idempotency.header-name","X-Custom-Cache")));
