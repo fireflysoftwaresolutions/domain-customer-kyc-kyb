@@ -31,15 +31,11 @@ public class ReproofingConfigurationImpl {
         return new GeneratedReproofingCoreAdapterImpl(new IdentityReproofingApi(client),ReproofingCodecsImpl.mapper());
     }
     @Bean public ReproofingNativePort reproofingNative(Environment env) {
-        WebClient web=client(env,required(env,"native-origin"),"native-rpc-client","native-rpc-secret-file");
-        return new ReproofingNativePort(){
-            public Mono<ReproofingAdmission> prepare(ReproofingBinding b,UUID id){return call("prepare",b,id);}
-            public Mono<ReproofingAdmission> admit(ReproofingBinding b,UUID id){return call("admit",b,id);}
-            private Mono<ReproofingAdmission> call(String action,ReproofingBinding b,UUID id){
-                return web.post().uri("/firefly-recovery/lost-credentials/rpc/"+action).bodyValue(new ReproofingNativeRequest(b,id,null))
-                    .retrieve().bodyToMono(ReproofingAdmission.class).timeout(Duration.ofSeconds(5));
-            }
-        };
+        String base=required(env,"native-base-url");
+        if(!base.equals(required(env,"issuer")+"/firefly-recovery/lost-credentials/rpc")) throw new IllegalStateException("Exact native realm RPC required");
+        URI uri=URI.create(base);
+        WebClient web=client(env,uri.getScheme()+"://"+uri.getRawAuthority(),"native-rpc-client","native-rpc-secret-file");
+        return new NativeReproofingHttpAdapterImpl(web,base);
     }
     @Bean public ReproofingServiceImpl reproofingService(ReproofingCorePort core, ReproofingNativePort nativePort,
             ObjectProvider<ReproofingProviderPort> providers, ReproofingPolicyImpl policy) {
