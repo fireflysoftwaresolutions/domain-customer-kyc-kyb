@@ -9,10 +9,10 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SandboxKybProviderAdapterTest {
+class SandboxKybProviderAdapterImplTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withUserConfiguration(SandboxKybProviderAdapter.class);
+            .withUserConfiguration(SandboxKybProviderAdapterImpl.class);
 
     @Test
     void missingSelectionMustNotRegisterSyntheticProvider() {

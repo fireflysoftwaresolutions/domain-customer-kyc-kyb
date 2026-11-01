@@ -40,7 +40,7 @@ jobs:
           pom.write_text(original.replace('<relativePath/>', '<relativePath>.qualification/firefly-parent/pom.xml</relativePath>'))
           PYTHON
       - name: Complete actual reactor verification without publication
-        run: mvn -B -ntp -Dmaven.repo.local="$RUNNER_TEMP/kyb-source-m2" verify
+        run: mvn -B -ntp -Dmaven.repo.local="$RUNNER_TEMP/kyb-source-m2" clean verify
       - name: Require actual provider-selection and persistence regression reports
         if: success()
         run: |
