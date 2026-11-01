@@ -1,0 +1,29 @@
+name: Reproofing Domain source
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  domain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: fireflysoftwaresolutions/firefly-parent
+          ref: 6442bd51733ade4d5f4583e1afe812dd2c520b40
+          path: .qualification/firefly-parent
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Exact source-parent fixture and full reactor
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('pom.xml')
+          p.write_text(p.read_text().replace('<relativePath/>','<relativePath>.qualification/firefly-parent/pom.xml</relativePath>'))
+          PY
+          mvn -B -ntp -Dmaven.repo.local="$RUNNER_TEMP/reproofing-m2" verify > .qualification/domain.log 2>&1 || { tail -100 .qualification/domain.log; exit 1; }
