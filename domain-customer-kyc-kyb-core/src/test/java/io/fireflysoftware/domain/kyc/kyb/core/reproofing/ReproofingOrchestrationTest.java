@@ -71,14 +71,16 @@ class ReproofingOrchestrationTest {
         verify(provider).begin(c); verify(core,never()).bind(any(),any());
     }
     VerifiedReproofingEvidence evidence(UUID reference,Instant expiry,boolean authentic){return new VerifiedReproofingEvidence(c.caseId(),b,"provider","policy","session","evidence","digest",reference,now,expiry,authentic,true,true,true);}
-    @Test void positiveCoreAuthorizationRequiresFreshDomainAdmissionAfterProof(){
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void positiveCoreAuthorizationRequiresFreshDomainAdmissionAfterProof(boolean eligible){
         var request=new ConfirmReproofingRequest(b);
         var authorization=new ReproofingAuthorization(c.caseId(),UUID.randomUUID(),UUID.randomUUID(),b,"digest","policy",now.plusSeconds(120));
         var verified=new ReproofingCaseResponse(c.caseId(),c.providerStartId(),b,"VERIFIED","provider","policy","session",c.expiresAt(),authorization);
         when(nativePort.prepare(b,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(b,false,c.expiresAt())));
         when(core.confirm(c.caseId(),request)).thenReturn(Mono.just(verified));
-        when(nativePort.admit(b,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(b,false,c.expiresAt())));
-        StepVerifier.create(service.confirm(c.caseId(),request)).expectErrorMatches(error->error.getMessage().contains("403")).verify();
+        when(nativePort.admit(b,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(b,eligible,c.expiresAt())));
+        if(eligible) StepVerifier.create(service.confirm(c.caseId(),request)).expectNext(verified).verifyComplete();
+        else StepVerifier.create(service.confirm(c.caseId(),request)).expectErrorMatches(error->error.getMessage().contains("403")).verify();
         var order=inOrder(nativePort,core);order.verify(nativePort).prepare(b,c.caseId());order.verify(core).confirm(c.caseId(),request);order.verify(nativePort).admit(b,c.caseId());
     }
     @ParameterizedTest @ValueSource(strings={"case","binding","provider","policy","authorization-binding","authorization-case","expired-authorization"})
