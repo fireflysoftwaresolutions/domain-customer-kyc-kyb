@@ -10,10 +10,10 @@ import org.springframework.context.annotation.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SandboxKybVerificationAdapterTest {
+class SandboxKybVerificationAdapterImplTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withUserConfiguration(SandboxKybVerificationAdapter.class);
+            .withUserConfiguration(SandboxKybVerificationAdapterImpl.class);
 
     @Test
     void missingSelectionMustNotRegisterSyntheticProvider() {

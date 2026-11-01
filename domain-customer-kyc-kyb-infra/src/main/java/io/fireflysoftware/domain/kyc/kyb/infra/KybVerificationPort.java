@@ -25,7 +25,7 @@ import java.util.UUID;
  * Port for external KYB (Know Your Business) verification providers.
  * Implementations may delegate to an external provider.
  *
- * <p>Use {@link SandboxKybVerificationAdapter} when no external provider is configured.</p>
+ * <p>{@link SandboxKybVerificationAdapterImpl} requires explicit sandbox selection and is not a live verification provider.</p>
  */
 public interface KybVerificationPort {
 
