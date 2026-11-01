@@ -19,11 +19,24 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - name: Exact source-parent fixture and full reactor
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('pom.xml')
-          p.write_text(p.read_text().replace('<relativePath/>','<relativePath>.qualification/firefly-parent/pom.xml</relativePath>'))
-          PY
-          mvn -B -ntp -Dmaven.repo.local="$RUNNER_TEMP/reproofing-m2" -pl :domain-customer-kyc-kyb-web -am test -Dtest=ReproofingDisabledBoundaryTest -Dsurefire.failIfNoSpecifiedTests=false > .qualification/domain.log 2>&1 || { tail -100 .qualification/domain.log; exit 1; }
+      - id: core
+        run: echo "pin=$(cat tooling/reproofing-core-source.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: fireflysoftwaresolutions/core-common-kycb-mgmt
+          ref: ${{ steps.core.outputs.pin }}
+          path: .qualification/core
+      - name: YAML parser
+        run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Exact producer, generated SDK and full Domain reactor
+        run: python3 tooling/prepare_reproofing_sdk_fixture.py
+      - name: Source provenance
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reproofing-domain-source
+          path: |
+            .qualification/reproofing-sdk-summary.json
+            .qualification/*.log
+          if-no-files-found: ignore
+          retention-days: 7
