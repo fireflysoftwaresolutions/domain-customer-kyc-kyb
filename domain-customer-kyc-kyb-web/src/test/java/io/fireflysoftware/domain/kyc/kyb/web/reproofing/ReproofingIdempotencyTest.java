@@ -33,7 +33,10 @@ class ReproofingIdempotencyTest {
             for(String path:List.of("/api/v1/identity-recovery/cases","/internal/identity-recovery/evidence")){
                 var exchange=MockServerWebExchange.from(MockServerHttpRequest.post(path).header("X-Custom-Cache","same-key"));
                 exchange.getAttributes().put(HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE,new HandlerMethod(new Endpoint(),Endpoint.class.getMethod("route")));
-                product.filter(exchange,clean->framework.filter(clean,downstream->{calls.incrementAndGet();return Mono.empty();})).block();
+                product.filter(exchange,clean->{
+                    assertThat(clean.getRequest().getHeaders().getFirst("X-Custom-Cache")).isNull();
+                    return framework.filter(clean,downstream->{calls.incrementAndGet();return Mono.empty();});
+                }).block();
             }
             assertThat(calls.get()).isEqualTo(2);verifyNoInteractions(cache);
         }

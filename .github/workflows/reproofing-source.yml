@@ -37,6 +37,6 @@ jobs:
           name: reproofing-domain-source
           path: |
             .qualification/reproofing-sdk-summary.json
-            .qualification/*.log
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7

@@ -55,5 +55,6 @@ jobs:
         with:
           name: kyb-source-summary
           path: .qualification/kyb-source-summary.json
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
