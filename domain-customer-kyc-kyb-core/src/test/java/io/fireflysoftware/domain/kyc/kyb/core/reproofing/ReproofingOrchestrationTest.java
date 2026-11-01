@@ -34,9 +34,10 @@ class ReproofingOrchestrationTest {
         StepVerifier.create(service.create(new CreateReproofingCaseRequest(target))).assertNext(j->{
             assertThat(j.reproofingCase().authorization()).isNull();assertThat(j.verificationUrl()).isEqualTo("https://proof.test/journey");
         }).verifyComplete();
-        when(nativePort.admit(target,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(target,false,c.expiresAt())));
+        when(nativePort.prepare(target,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(target,false,c.expiresAt())));
+        when(core.confirm(c.caseId(),new ConfirmReproofingRequest(target))).thenReturn(Mono.error(ReproofingPolicyImpl.denied()));
         StepVerifier.create(service.confirm(c.caseId(),new ConfirmReproofingRequest(target))).expectErrorMatches(error->error.getMessage().contains("403")).verify();
-        verify(core,never()).confirm(any(),any());
+        verify(nativePort,never()).admit(any(),any());
     }
     @Test void expiredExecutedAuditReconciliationDoesNotRequireFreshAdmission(){
         var request=new RecordReproofingExecutionRequest(b,UUID.randomUUID(),UUID.randomUUID(),"CREDENTIALS_REPLACED");
@@ -70,17 +71,24 @@ class ReproofingOrchestrationTest {
         verify(provider).begin(c); verify(core,never()).bind(any(),any());
     }
     VerifiedReproofingEvidence evidence(UUID reference,Instant expiry,boolean authentic){return new VerifiedReproofingEvidence(c.caseId(),b,"provider","policy","session","evidence","digest",reference,now,expiry,authentic,true,true,true);}
+    @Test void authenticatedNegativeChecksRemainAvailableToIndependentCoreFailurePolicy(){
+        var r=new ReproofingEvidenceRequest(c.caseId(),b,"provider","policy","session");
+        when(provider.providerId()).thenReturn("provider");when(core.inspect(c.caseId(),new ConfirmReproofingRequest(b))).thenReturn(Mono.just(c));
+        var negative=evidence(b.partyId(),c.expiresAt(),false);when(provider.verify(r)).thenReturn(Mono.just(negative));
+        StepVerifier.create(service.evidence(r)).assertNext(e->assertThat(e.documentAuthentic()).isFalse()).verifyComplete();
+        verify(core,never()).confirm(any(),any());
+    }
     @Test void actualStoredEvidenceIsVerifiedAndBoundToExistingReference(){
         var r=new ReproofingEvidenceRequest(c.caseId(),b,"provider","policy","session");
         when(provider.providerId()).thenReturn("provider");when(core.inspect(c.caseId(),new ConfirmReproofingRequest(b))).thenReturn(Mono.just(c));
         var verified=evidence(b.partyId(),c.expiresAt(),true);when(provider.verify(r)).thenReturn(Mono.just(verified));
         StepVerifier.create(service.evidence(r)).expectNext(verified).verifyComplete();
     }
-    @ParameterizedTest @ValueSource(strings={"reference","expired","forged","future"})
+    @ParameterizedTest @ValueSource(strings={"reference","expired","future"})
     void invalidProviderEvidenceNeverAuthorizes(String kind){
         var r=new ReproofingEvidenceRequest(c.caseId(),b,"provider","policy","session");
         when(provider.providerId()).thenReturn("provider");when(core.inspect(c.caseId(),new ConfirmReproofingRequest(b))).thenReturn(Mono.just(c));
-        var e=evidence(kind.equals("reference")?UUID.randomUUID():b.partyId(),kind.equals("expired")?now:kind.equals("future")?now.plusSeconds(601):c.expiresAt(),!kind.equals("forged"));
+        var e=evidence(kind.equals("reference")?UUID.randomUUID():b.partyId(),kind.equals("expired")?now:kind.equals("future")?now.plusSeconds(601):c.expiresAt(),true);
         when(provider.verify(r)).thenReturn(Mono.just(e));
         StepVerifier.create(service.evidence(r)).expectErrorMatches(error->error.getMessage().contains("403")).verify();
     }
@@ -90,9 +98,13 @@ class ReproofingOrchestrationTest {
         StepVerifier.create(service.evidence(r)).expectErrorMatches(error->error.getMessage().contains("403")).verify();
         verify(provider,never()).verify(any());
     }
-    @Test void currentNativeHoldRefusesBeforeCoreConfirmation(){
+    @Test void confirmationPreparesCeremonyBeforeIndependentCoreProofAndAdmission(){
+        var request=new ConfirmReproofingRequest(b);
+        when(nativePort.prepare(b,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(b,false,c.expiresAt())));
         when(nativePort.admit(b,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(b,false,c.expiresAt())));
-        StepVerifier.create(service.confirm(c.caseId(),new ConfirmReproofingRequest(b))).expectErrorMatches(error->error.getMessage().contains("403")).verify();verifyNoInteractions(core);
+        when(core.confirm(c.caseId(),request)).thenReturn(Mono.error(ReproofingPolicyImpl.denied()));
+        StepVerifier.create(service.confirm(c.caseId(),request)).expectErrorMatches(error->error.getMessage().contains("403")).verify();
+        verify(nativePort).prepare(b,c.caseId());verify(nativePort,never()).admit(any(),any());verify(core).confirm(c.caseId(),request);
     }
     @ParameterizedTest @ValueSource(strings={"https://proof.test.evil/journey","https://proof.test:444/journey","http://proof.test/journey","https://user@proof.test/journey"})
     void providerJourneyRequiresExactConfiguredHttpsOrigin(String url){assertThatThrownBy(()->policy.journeyUrl(url)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);}
