@@ -71,6 +71,26 @@ class ReproofingOrchestrationTest {
         verify(provider).begin(c); verify(core,never()).bind(any(),any());
     }
     VerifiedReproofingEvidence evidence(UUID reference,Instant expiry,boolean authentic){return new VerifiedReproofingEvidence(c.caseId(),b,"provider","policy","session","evidence","digest",reference,now,expiry,authentic,true,true,true);}
+    @Test void positiveCoreAuthorizationRequiresFreshDomainAdmissionAfterProof(){
+        var request=new ConfirmReproofingRequest(b);
+        var authorization=new ReproofingAuthorization(c.caseId(),UUID.randomUUID(),UUID.randomUUID(),b,"digest","policy",now.plusSeconds(120));
+        var verified=new ReproofingCaseResponse(c.caseId(),c.providerStartId(),b,"VERIFIED","provider","policy","session",c.expiresAt(),authorization);
+        when(nativePort.prepare(b,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(b,false,c.expiresAt())));
+        when(core.confirm(c.caseId(),request)).thenReturn(Mono.just(verified));
+        when(nativePort.admit(b,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(b,false,c.expiresAt())));
+        StepVerifier.create(service.confirm(c.caseId(),request)).expectErrorMatches(error->error.getMessage().contains("403")).verify();
+        var order=inOrder(nativePort,core);order.verify(nativePort).prepare(b,c.caseId());order.verify(core).confirm(c.caseId(),request);order.verify(nativePort).admit(b,c.caseId());
+    }
+    @ParameterizedTest @ValueSource(strings={"case","binding","provider","policy","authorization-binding","authorization-case","expired-authorization"})
+    void substitutedPositiveSdkResponseIsRefusedBeforeFinalAdmission(String kind){
+        var other=new ReproofingBinding(b.issuer(),b.realm(),b.tenant(),b.subject(),b.partyId(),b.population(),b.purpose(),b.generation(),b.credentialRevision(),"other-nonce");
+        var authorization=new ReproofingAuthorization(kind.equals("authorization-case")?UUID.randomUUID():c.caseId(),UUID.randomUUID(),UUID.randomUUID(),kind.equals("authorization-binding")?other:b,"digest","policy",kind.equals("expired-authorization")?now:now.plusSeconds(120));
+        var verified=new ReproofingCaseResponse(kind.equals("case")?UUID.randomUUID():c.caseId(),c.providerStartId(),kind.equals("binding")?other:b,"VERIFIED",kind.equals("provider")?"other":"provider",kind.equals("policy")?"other":"policy","session",c.expiresAt(),authorization);
+        var request=new ConfirmReproofingRequest(b);
+        when(nativePort.prepare(b,c.caseId())).thenReturn(Mono.just(new ReproofingAdmission(b,false,c.expiresAt())));
+        when(core.confirm(c.caseId(),request)).thenReturn(Mono.just(verified));
+        StepVerifier.create(service.confirm(c.caseId(),request)).expectErrorMatches(error->error.getMessage().contains("403")).verify();verify(nativePort,never()).admit(any(),any());
+    }
     @Test void authenticatedNegativeChecksRemainAvailableToIndependentCoreFailurePolicy(){
         var r=new ReproofingEvidenceRequest(c.caseId(),b,"provider","policy","session");
         when(provider.providerId()).thenReturn("provider");when(core.inspect(c.caseId(),new ConfirmReproofingRequest(b))).thenReturn(Mono.just(c));
