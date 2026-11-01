@@ -158,7 +158,7 @@ def main():
     if not all(any(r['name'].endswith(name) for r in reports) for name in required) or any(int(r[k]) for r in reports for k in ('failures', 'errors', 'skipped')):
         raise RuntimeError('Required actual Domain/SDK reports missing, failed or skipped')
     summary.update(candidate_sdk_version=version, candidate_sdk_sha256=sha(jar), candidate_descriptor_sha256=sha(flat),
-                   producer_spec_sha256=sha(spec_path), reports=reports, status='SOURCE_FIXTURE_PASSED')
+                   producer_spec_sha256=sha(spec_path), reports=reports, status='SOURCE_TESTS_PASSED_RUNTIME_PENDING')
     (qualification / 'reproofing-sdk-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
     web = ROOT / 'domain-customer-kyc-kyb-web'
     deps = web / 'runtime-classpath.txt'
@@ -183,6 +183,9 @@ def main():
         'firefly.reproofing.fixture-state': '${STATE}/provider'
     }
     (qualification / 'reproofing-runtime.json').write_text(json.dumps({'mainClass':'io.fireflysoftware.domain.kyc.kyb.web.reproofing.ReproofingFixtureApplication','properties':properties},indent=2))
+    summary.update(status='SOURCE_FIXTURE_PASSED', runtime_main_class='io.fireflysoftware.domain.kyc.kyb.web.reproofing.ReproofingFixtureApplication',
+                   runtime_classpath_file=str(qualification / 'reproofing-domain-classpath.txt'), fixture_packaged=False)
+    (qualification / 'reproofing-sdk-summary.json').write_text(json.dumps(summary,indent=2) + '\n')
     print('Original producer, distinct generated SDK and Domain source tests passed; actual provider acceptance remains separate.')
 
 
