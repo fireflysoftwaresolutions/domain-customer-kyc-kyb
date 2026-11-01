@@ -35,6 +35,22 @@ public final class ReproofingPolicyImpl {
         if (c==null || c.caseId()==null || c.providerStartId()==null || !b.equals(c.binding())
                 || !provider.equals(c.providerId()) || !policy.equals(c.policyId()) || !live(c.expiresAt())) throw denied();
     }
+    public void confirmed(UUID caseId, ReproofingBinding binding, ReproofingCaseResponse response, Instant ceremonyExpiry) {
+        reproofingCase(binding,response);
+        if (!caseId.equals(response.caseId()) || response.expiresAt().isAfter(ceremonyExpiry)
+                || !Set.of("PENDING","VERIFIED","CONSUMED","EXECUTED","DENIED","EXPIRED").contains(response.status())) throw denied();
+        ReproofingAuthorization authorization=response.authorization();
+        if (authorization==null) {
+            if (Set.of("VERIFIED","CONSUMED","EXECUTED").contains(response.status())) throw denied();
+            return;
+        }
+        if (!Set.of("VERIFIED","CONSUMED","EXECUTED").contains(response.status()) || response.providerSessionId()==null
+                || !caseId.equals(authorization.caseId()) || !binding.equals(authorization.binding())
+                || authorization.authorizationId()==null || authorization.executionId()==null || !policy.equals(authorization.policyId())
+                || !live(authorization.expiresAt()) || authorization.expiresAt().isAfter(response.expiresAt())) throw denied();
+        text(response.providerSessionId());
+        text(authorization.evidenceDigest());
+    }
     public void evidence(ReproofingEvidenceRequest r, ReproofingCaseResponse c, VerifiedReproofingEvidence e) {
         reproofingCase(r.binding(),c);
         if (!c.caseId().equals(r.caseId()) || !provider.equals(r.providerId()) || !policy.equals(r.policyId())
