@@ -24,8 +24,12 @@ public final class ReproofingPolicyImpl {
         text(b.subject()); text(b.generation()); text(b.credentialRevision()); text(b.nonce());
         if (b.nonce().length()>128) throw denied();
     }
+    public void preparation(ReproofingBinding b, ReproofingAdmission a) {
+        if (a==null || !b.equals(a.binding()) || !live(a.expiresAt())) throw denied();
+    }
     public void admission(ReproofingBinding b, ReproofingAdmission a) {
-        if (a==null || !b.equals(a.binding()) || !a.eligible() || !live(a.expiresAt())) throw denied();
+        preparation(b,a);
+        if (!a.eligible()) throw denied();
     }
     public void reproofingCase(ReproofingBinding b, ReproofingCaseResponse c) {
         if (c==null || c.caseId()==null || c.providerStartId()==null || !b.equals(c.binding())
