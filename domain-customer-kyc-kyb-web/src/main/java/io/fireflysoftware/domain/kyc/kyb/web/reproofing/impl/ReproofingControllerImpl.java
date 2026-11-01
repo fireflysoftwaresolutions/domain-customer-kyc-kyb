@@ -26,5 +26,5 @@ public final class ReproofingControllerImpl {
     @PostMapping("/{caseId}/authorizations/verify") @Operation(operationId="verifyReproofingJourney")
     public Mono<ReproofingAuthorization> verify(@PathVariable UUID caseId,@RequestBody ReproofingAuthorizationRequest r){return service.verify(caseId,r);}
     @PostMapping("/{caseId}/executions") @Operation(operationId="recordReproofingJourney")
-    public Mono<ReproofingExecution> record(@PathVariable UUID caseId,@RequestBody RecordReproofingExecutionRequest r){return service.record(caseId,r);}
+    public Mono<ReproofingCaseResponse> record(@PathVariable UUID caseId,@RequestBody RecordReproofingExecutionRequest r){return service.record(caseId,r);}
 }

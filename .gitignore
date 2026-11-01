@@ -39,3 +39,6 @@ target/
 
 # Hosted-only source qualification overlay
 .qualification/
+
+__pycache__/
+**/runtime-classpath.txt

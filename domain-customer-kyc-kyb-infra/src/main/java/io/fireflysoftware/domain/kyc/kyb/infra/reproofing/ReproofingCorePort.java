@@ -10,5 +10,5 @@ public interface ReproofingCorePort {
     Mono<ReproofingCaseResponse> confirm(UUID id, ConfirmReproofingRequest request);
     Mono<ReproofingAuthorization> consume(UUID id, ReproofingAuthorizationRequest request);
     Mono<ReproofingAuthorization> verify(UUID id, ReproofingAuthorizationRequest request);
-    Mono<ReproofingExecution> record(UUID id, RecordReproofingExecutionRequest request);
+    Mono<ReproofingCaseResponse> record(UUID id, RecordReproofingExecutionRequest request);
 }

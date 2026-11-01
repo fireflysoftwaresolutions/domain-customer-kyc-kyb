@@ -49,7 +49,7 @@ public final class ReproofingServiceImpl {
     public Mono<ReproofingAuthorization> verify(UUID id, ReproofingAuthorizationRequest r) {
         return admitted(r.binding(),id).then(Mono.defer(()->core.verify(id,r)));
     }
-    public Mono<ReproofingExecution> record(UUID id, RecordReproofingExecutionRequest r) {
+    public Mono<ReproofingCaseResponse> record(UUID id, RecordReproofingExecutionRequest r) {
         return Mono.defer(()->{policy.binding(r.binding()); if(!"CREDENTIALS_REPLACED".equals(r.outcome())) throw ReproofingPolicyImpl.denied(); return core.record(id,r);});
     }
     public Mono<VerifiedReproofingEvidence> evidence(ReproofingEvidenceRequest r) {

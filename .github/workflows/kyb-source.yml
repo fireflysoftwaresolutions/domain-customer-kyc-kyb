@@ -22,25 +22,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - name: Exact source parent fixture without installing a released parent GAV
-        run: |
-          python3 - <<'PYTHON'
-          from pathlib import Path
-          import subprocess
-          import xml.etree.ElementTree as ET
-          parent = Path('.qualification/firefly-parent')
-          assert subprocess.check_output(['git', '-C', str(parent), 'rev-parse', 'HEAD'], text=True).strip() == '6442bd51733ade4d5f4583e1afe812dd2c520b40'
-          ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
-          model = ET.parse(parent / 'pom.xml').getroot()
-          assert model.find('m:parent/m:version', ns).text == '26.10.23'
-          assert model.find('m:properties/m:fireflyframework.bom.version', ns).text == '26.10.23'
-          pom = Path('pom.xml')
-          original = pom.read_text()
-          assert original.count('<relativePath/>') == 1
-          pom.write_text(original.replace('<relativePath/>', '<relativePath>.qualification/firefly-parent/pom.xml</relativePath>'))
-          PYTHON
-      - name: Complete actual reactor verification without publication
-        run: mvn -B -ntp -Dmaven.repo.local="$RUNNER_TEMP/kyb-source-m2" clean verify
+      - id: core
+        run: echo "pin=$(cat tooling/reproofing-core-source.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: fireflysoftwaresolutions/core-common-kycb-mgmt
+          ref: ${{ steps.core.outputs.pin }}
+          path: .qualification/core
+      - name: YAML parser
+        run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Complete reactor with original producer and generated candidate SDK
+        run: python3 tooling/prepare_reproofing_sdk_fixture.py
       - name: Require actual provider-selection and persistence regression reports
         if: success()
         run: |

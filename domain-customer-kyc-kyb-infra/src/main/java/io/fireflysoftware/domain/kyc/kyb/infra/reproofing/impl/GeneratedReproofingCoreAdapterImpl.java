@@ -20,5 +20,5 @@ public final class GeneratedReproofingCoreAdapterImpl implements ReproofingCoreP
     public Mono<ReproofingCaseResponse> confirm(UUID id, ConfirmReproofingRequest r) { return result(api.confirmReproofingCase(id,map(r,io.fireflysoftware.core.kycb.sdk.model.ConfirmReproofingRequest.class)),ReproofingCaseResponse.class); }
     public Mono<ReproofingAuthorization> consume(UUID id, ReproofingAuthorizationRequest r) { return result(api.consumeReproofingAuthorization(id,map(r,io.fireflysoftware.core.kycb.sdk.model.ReproofingAuthorizationRequest.class)),ReproofingAuthorization.class); }
     public Mono<ReproofingAuthorization> verify(UUID id, ReproofingAuthorizationRequest r) { return result(api.verifyReproofingAuthorization(id,map(r,io.fireflysoftware.core.kycb.sdk.model.ReproofingAuthorizationRequest.class)),ReproofingAuthorization.class); }
-    public Mono<ReproofingExecution> record(UUID id, RecordReproofingExecutionRequest r) { return result(api.recordReproofingExecution(id,map(r,io.fireflysoftware.core.kycb.sdk.model.RecordReproofingExecutionRequest.class)),ReproofingExecution.class); }
+    public Mono<ReproofingCaseResponse> record(UUID id, RecordReproofingExecutionRequest r) { return result(api.recordReproofingExecution(id,map(r,io.fireflysoftware.core.kycb.sdk.model.RecordReproofingExecutionRequest.class)),ReproofingCaseResponse.class); }
 }
