@@ -1,0 +1,57 @@
+package io.fireflysoftware.domain.kyc.kyb.core.kyb.ports.adapters;
+
+import io.fireflysoftware.domain.kyc.kyb.core.kyb.ports.KybProviderPort;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class SandboxKybProviderAdapterTest {
+
+    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+            .withUserConfiguration(SandboxKybProviderAdapter.class);
+
+    @Test
+    void missingSelectionMustNotRegisterSyntheticProvider() {
+        runner.run(context -> assertThat(context).doesNotHaveBean(KybProviderPort.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "unknown", "live"})
+    void otherSelectionsMustNotRegisterSyntheticProvider(String selection) {
+        runner.withPropertyValues("kyb.provider=" + selection)
+                .run(context -> assertThat(context).doesNotHaveBean(KybProviderPort.class));
+    }
+
+    @Test
+    void explicitSandboxSelectionRegistersSampleWithStableBeanName() {
+        runner.withPropertyValues("kyb.provider=sandbox").run(context -> {
+            assertThat(context).hasSingleBean(KybProviderPort.class);
+            assertThat(context).hasBean("sandboxKybProviderAdapter");
+        });
+    }
+
+    @Test
+    void missingProviderRefusesRequiredConsumerStartup() {
+        runner.withUserConfiguration(RequiredProviderConfiguration.class).run(context -> {
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure())
+                    .hasRootCauseInstanceOf(NoSuchBeanDefinitionException.class);
+        });
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class RequiredProviderConfiguration {
+        @Bean
+        RequiredConsumer requiredConsumer(KybProviderPort provider) {
+            return new RequiredConsumer(provider);
+        }
+    }
+
+    record RequiredConsumer(KybProviderPort provider) {}
+}
