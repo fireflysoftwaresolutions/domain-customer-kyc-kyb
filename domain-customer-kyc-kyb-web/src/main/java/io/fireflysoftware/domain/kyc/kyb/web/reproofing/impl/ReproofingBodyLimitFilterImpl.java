@@ -12,11 +12,19 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 
 @Component
-@Order(-110)
+@Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
 public final class ReproofingBodyLimitFilterImpl implements WebFilter {
+ private final String idempotencyHeader;
+ public ReproofingBodyLimitFilterImpl(org.springframework.core.env.Environment env){
+  idempotencyHeader=env.getProperty("firefly.web.idempotency.header-name","X-Idempotency-Key");
+ }
  @Override public Mono<Void> filter(ServerWebExchange exchange,WebFilterChain chain){
   String path=exchange.getRequest().getPath().pathWithinApplication().value();
   if(!path.equals("/api/v1/identity-recovery/cases") && !path.startsWith("/api/v1/identity-recovery/cases/") && !path.startsWith("/internal/identity-recovery/"))return chain.filter(exchange);
+  var request=exchange.getRequest().mutate().headers(headers->{headers.remove(idempotencyHeader);headers.remove("X-Idempotency-Key");}).build();
+  return bounded(exchange.mutate().request(request).build(),chain);
+ }
+ private Mono<Void> bounded(ServerWebExchange exchange,WebFilterChain chain){
   exchange.getResponse().getHeaders().setCacheControl("no-store");
   if(exchange.getRequest().getHeaders().getContentLength()>32768){exchange.getResponse().setStatusCode(HttpStatus.PAYLOAD_TOO_LARGE);return exchange.getResponse().setComplete();}
   return DataBufferUtils.join(exchange.getRequest().getBody(),32768).map(buffer->{
