@@ -68,7 +68,7 @@ public class ReproofingFixtureApplication {
             return new ProviderStart(session,origin+"/fixture/proofing/"+session);
         }
         synchronized void control(String session,String mode)throws Exception{
-            if(!Set.of("APPROVED","FORGED","EXPIRED","WRONG_REFERENCE","REPLAYED","UNAVAILABLE").contains(mode)) throw new IllegalArgumentException("Fixture mode refused");
+            if(!Set.of("APPROVED","REJECTED","FORGED","EXPIRED","WRONG_REFERENCE","REPLAYED","UNAVAILABLE").contains(mode)) throw new IllegalArgumentException("Fixture mode refused");
             Stored stored=read(session);write(session,stored.reproofingCase(),mode);
         }
         public Mono<VerifiedReproofingEvidence> verify(ReproofingEvidenceRequest request){return Mono.fromCallable(()->verified(request));}
@@ -80,7 +80,7 @@ public class ReproofingFixtureApplication {
             Instant now=Instant.now();
             return new VerifiedReproofingEvidence(stored.mode().equals("REPLAYED")?UUID.randomUUID():c.caseId(),c.binding(),c.providerId(),c.policyId(),r.providerSessionId(),
                 "evidence-"+c.providerStartId(),sign(c,stored.mode()),stored.mode().equals("WRONG_REFERENCE")?UUID.randomUUID():c.binding().partyId(),now,
-                stored.mode().equals("EXPIRED")?now.minusSeconds(1):c.expiresAt(),true,true,true,true);
+                stored.mode().equals("EXPIRED")?now.minusSeconds(1):c.expiresAt(),!stored.mode().equals("REJECTED"),true,true,true);
         }
         private Path file(String session){if(session==null || !session.matches("fixture-[0-9a-f-]{36}")) throw new SecurityException("Fixture session refused");return directory.resolve(session+".json");}
         private Stored read(String session)throws Exception{

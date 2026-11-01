@@ -41,7 +41,7 @@ public final class ReproofingPolicyImpl {
                 || !Objects.equals(c.providerSessionId(),r.providerSessionId()) || r.providerSessionId()==null
                 || e==null || !r.caseId().equals(e.caseId()) || !r.binding().equals(e.binding())
                 || !provider.equals(e.providerId()) || !policy.equals(e.policyId()) || !r.providerSessionId().equals(e.providerSessionId())
-                || !r.binding().partyId().equals(e.referenceId()) || !e.documentAuthentic() || !e.liveMatch() || !e.fraudCleared() || !e.referenceMatched()
+                || !r.binding().partyId().equals(e.referenceId())
                 || e.verifiedAt()==null || e.verifiedAt().isAfter(clock.instant()) || e.verifiedAt().isBefore(clock.instant().minusSeconds(600))
                 || !live(e.expiresAt()) || e.expiresAt().isAfter(c.expiresAt())) throw denied();
         text(e.evidenceId()); text(e.evidenceDigest());

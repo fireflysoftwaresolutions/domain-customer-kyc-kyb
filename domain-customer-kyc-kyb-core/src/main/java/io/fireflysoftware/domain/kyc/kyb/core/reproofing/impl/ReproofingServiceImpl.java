@@ -41,7 +41,7 @@ public final class ReproofingServiceImpl {
         });});
     }
     public Mono<ReproofingCaseResponse> confirm(UUID id, ConfirmReproofingRequest r) {
-        return admitted(r.binding(),id).then(Mono.defer(()->core.confirm(id,r)));
+        return prepared(r.binding(),id).then(Mono.defer(()->core.confirm(id,r)));
     }
     public Mono<ReproofingAuthorization> consume(UUID id, ReproofingAuthorizationRequest r) {
         return admitted(r.binding(),id).then(Mono.defer(()->core.consume(id,r)));
@@ -62,6 +62,9 @@ public final class ReproofingServiceImpl {
                 return provider.verify(r).switchIfEmpty(Mono.error(ReproofingPolicyImpl.unavailable())).doOnNext(e->policy.evidence(r,c,e));
             });
         }).timeout(Duration.ofSeconds(10));
+    }
+    private Mono<Void> prepared(ReproofingBinding b, UUID id) {
+        return Mono.defer(()->{policy.binding(b); return nativePort.prepare(b,id).doOnNext(a->policy.preparation(b,a)).switchIfEmpty(Mono.error(ReproofingPolicyImpl.unavailable())).then();});
     }
     private Mono<Void> admitted(ReproofingBinding b, UUID id) {
         return Mono.defer(()->{policy.binding(b); return nativePort.admit(b,id).doOnNext(a->policy.admission(b,a)).switchIfEmpty(Mono.error(ReproofingPolicyImpl.unavailable())).then();});
